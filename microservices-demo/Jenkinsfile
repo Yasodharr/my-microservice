@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        ECR_REGISTRY = '319556313663.dkr.ecr.us-east-1.amazonaws.com'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Validate') {
+            steps {
+                sh 'docker compose config -q'
+                sh 'python3 -m py_compile user-service/main.py product-service/main.py order-service/main.py'
+            }
+        }
+
+        stage('Build Images') {
+            steps {
+                sh '''
+                docker build -t user-service:v1 ./user-service
+                docker build -t product-service:v1 ./product-service
+                docker build -t order-service:v1 ./order-service
+                '''
+            }
+        }
+
+        stage('ECR Login') {
+            steps {
+                sh '''
+                aws ecr get-login-password --region $AWS_REGION |
+                docker login --username AWS --password-stdin $ECR_REGISTRY
+                '''
+            }
+        }
+
+        stage('Push Images') {
+            steps {
+                sh '''
+                docker tag user-service:v1 $ECR_REGISTRY/user-service:v1
+                docker tag product-service:v1 $ECR_REGISTRY/product-service:v1
+                docker tag order-service:v1 $ECR_REGISTRY/order-service:v1
+
+                docker push $ECR_REGISTRY/user-service:v1
+                docker push $ECR_REGISTRY/product-service:v1
+                docker push $ECR_REGISTRY/order-service:v1
+                '''
+            }
+        }
+    }
+}
