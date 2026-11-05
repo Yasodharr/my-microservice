@@ -93,3 +93,65 @@ async def create_order(order: OrderCreate):
     }
     orders[new_id] = new_order
     return new_order
+
+@app.put("/orders/{order_id}")
+async def update_order(order_id: int, order: OrderCreate):
+    if order_id not in orders:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    timeout = httpx.Timeout(5.0)
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            user_response = await client.get(
+                f"{USER_SERVICE_URL}/users/{order.user_id}"
+            )
+            product_response = await client.get(
+                f"{PRODUCT_SERVICE_URL}/products/{order.product_id}"
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not contact User Service or Product Service",
+        ) from exc
+
+    if user_response.status_code == 404:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_response.is_error:
+        raise HTTPException(status_code=502, detail="User Service returned an error")
+
+    if product_response.status_code == 404:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if product_response.is_error:
+        raise HTTPException(status_code=502, detail="Product Service returned an error")
+
+    user = user_response.json()
+    product = product_response.json()
+
+    if order.quantity > product["stock"]:
+        raise HTTPException(status_code=400, detail="Insufficient product stock")
+
+    updated_order = {
+        "id": order_id,
+        "user_id": user["id"],
+        "product_id": product["id"],
+        "quantity": order.quantity,
+        "total_price": round(float(product["price"]) * order.quantity, 2),
+    }
+
+    orders[order_id] = updated_order
+    return updated_order
+
+
+
+@app.delete("/orders/{order_id}")
+def delete_order(order_id: int):
+    if order_id not in orders:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    deleted_order = orders.pop(order_id)
+
+    return {
+        "message": "Order deleted successfully",
+        "order": deleted_order
+    }

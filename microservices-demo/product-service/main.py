@@ -47,3 +47,24 @@ def create_product(product: ProductCreate):
     new_product = {"id": new_id, **product.model_dump()}
     products[new_id] = new_product
     return new_product
+
+@app.put("/products/{product_id}")
+def update_product(product_id: int, product: ProductCreate):
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    updated_product = {"id": product_id, **product.model_dump()}
+    products[product_id] = updated_product
+    return updated_product
+
+
+@app.delete("/products/{product_id}")
+def delete_product(product_id: int):
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    deleted_product = products.pop(product_id)
+    return {
+        "message": "Product deleted successfully",
+        "product": deleted_product
+    }
