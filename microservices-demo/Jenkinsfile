@@ -15,26 +15,30 @@ pipeline {
 
         stage('Validate') {
             steps {
-                sh 'docker compose config -q'
-                sh 'python3 -m py_compile user-service/main.py product-service/main.py order-service/main.py'
+                dir('microservices-demo') {
+                    sh 'docker compose config -q'
+                    sh 'python3 -m py_compile user-service/main.py product-service/main.py order-service/main.py'
+                }
             }
         }
 
         stage('Build Images') {
             steps {
-                sh '''
-                docker build -t user-service:v1 ./user-service
-                docker build -t product-service:v1 ./product-service
-                docker build -t order-service:v1 ./order-service
-                '''
+                dir('microservices-demo') {
+                    sh '''
+                        docker build -t user-service:v1 ./user-service
+                        docker build -t product-service:v1 ./product-service
+                        docker build -t order-service:v1 ./order-service
+                    '''
+                }
             }
         }
 
         stage('ECR Login') {
             steps {
                 sh '''
-                aws ecr get-login-password --region $AWS_REGION |
-                docker login --username AWS --password-stdin $ECR_REGISTRY
+                    aws ecr get-login-password --region $AWS_REGION |
+                    docker login --username AWS --password-stdin $ECR_REGISTRY
                 '''
             }
         }
@@ -42,13 +46,13 @@ pipeline {
         stage('Push Images') {
             steps {
                 sh '''
-                docker tag user-service:v1 $ECR_REGISTRY/user-service:v1
-                docker tag product-service:v1 $ECR_REGISTRY/product-service:v1
-                docker tag order-service:v1 $ECR_REGISTRY/order-service:v1
+                    docker tag user-service:v1 $ECR_REGISTRY/user-service:v1
+                    docker tag product-service:v1 $ECR_REGISTRY/product-service:v1
+                    docker tag order-service:v1 $ECR_REGISTRY/order-service:v1
 
-                docker push $ECR_REGISTRY/user-service:v1
-                docker push $ECR_REGISTRY/product-service:v1
-                docker push $ECR_REGISTRY/order-service:v1
+                    docker push $ECR_REGISTRY/user-service:v1
+                    docker push $ECR_REGISTRY/product-service:v1
+                    docker push $ECR_REGISTRY/order-service:v1
                 '''
             }
         }
