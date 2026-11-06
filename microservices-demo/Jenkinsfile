@@ -1,12 +1,22 @@
 pipeline {
     agent any
 
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
     environment {
         AWS_REGION = 'us-east-1'
         ECR_REGISTRY = '319556313663.dkr.ecr.us-east-1.amazonaws.com'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -17,7 +27,13 @@ pipeline {
             steps {
                 dir('microservices-demo') {
                     sh 'docker compose config -q'
-                    sh 'python3 -m py_compile user-service/main.py product-service/main.py order-service/main.py'
+
+                    sh '''
+                        python3 -m py_compile \
+                        user-service/main.py \
+                        product-service/main.py \
+                        order-service/main.py
+                    '''
                 }
             }
         }
@@ -55,6 +71,30 @@ pipeline {
                     docker push $ECR_REGISTRY/order-service:v1
                 '''
             }
+        }
+
+        stage('Deploy to EC2') {
+    steps {
+        dir('microservices-demo') {
+            sh '''
+                docker compose pull user-service product-service order-service
+
+                docker compose up -d --build --remove-orphans
+
+                docker compose ps
+            '''
+        }
+    }
+}
+    }
+
+    post {
+        success {
+            echo 'CI/CD Pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed. Check the console output.'
         }
     }
 }

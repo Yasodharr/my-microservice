@@ -1,26 +1,27 @@
+
 services:
   user-service:
-    build: ./user-service
-    image: user-service:v1
+    image: 319556313663.dkr.ecr.us-east-1.amazonaws.com/user-service:v1
     container_name: user-service
     ports:
       - "8000:8000"
+    pull_policy: always
     restart: unless-stopped
 
   product-service:
-    build: ./product-service
-    image: product-service:v1
+    image: 319556313663.dkr.ecr.us-east-1.amazonaws.com/product-service:v1
     container_name: product-service
     ports:
       - "8001:8001"
+    pull_policy: always
     restart: unless-stopped
 
   order-service:
-    build: ./order-service
-    image: order-service:v1
+    image: 319556313663.dkr.ecr.us-east-1.amazonaws.com/order-service:v1
     container_name: order-service
     ports:
       - "8002:8002"
+    pull_policy: always
     environment:
       USER_SERVICE_URL: http://user-service:8000
       PRODUCT_SERVICE_URL: http://product-service:8001
@@ -28,8 +29,9 @@ services:
       - user-service
       - product-service
     restart: unless-stopped
+
   nginx:
-    image: nginx:alpine
+    build: ./frontend
     container_name: nginx-proxy
     ports:
       - "80:80"
@@ -40,3 +42,48 @@ services:
       - product-service
       - order-service
     restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8085:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
