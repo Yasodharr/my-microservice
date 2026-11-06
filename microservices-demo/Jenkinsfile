@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -32,7 +33,8 @@ pipeline {
                         python3 -m py_compile \
                         user-service/main.py \
                         product-service/main.py \
-                        order-service/main.py
+                        order-service/main.py \
+                        payment-service/main.py
                     '''
                 }
             }
@@ -45,6 +47,7 @@ pipeline {
                         docker build -t user-service:v1 ./user-service
                         docker build -t product-service:v1 ./product-service
                         docker build -t order-service:v1 ./order-service
+                        docker build -t payment-service:v1 ./payment-service
                     '''
                 }
             }
@@ -65,27 +68,29 @@ pipeline {
                     docker tag user-service:v1 $ECR_REGISTRY/user-service:v1
                     docker tag product-service:v1 $ECR_REGISTRY/product-service:v1
                     docker tag order-service:v1 $ECR_REGISTRY/order-service:v1
+                    docker tag payment-service:v1 $ECR_REGISTRY/payment-service:v1
 
                     docker push $ECR_REGISTRY/user-service:v1
                     docker push $ECR_REGISTRY/product-service:v1
                     docker push $ECR_REGISTRY/order-service:v1
+                    docker push $ECR_REGISTRY/payment-service:v1
                 '''
             }
         }
 
         stage('Deploy to EC2') {
-    steps {
-        dir('microservices-demo') {
-            sh '''
-                docker compose pull user-service product-service order-service
+            steps {
+                dir('microservices-demo') {
+                    sh '''
+                        docker compose pull user-service product-service order-service
 
-                docker compose up -d --build --remove-orphans
+                        docker compose up -d --build --remove-orphans
 
-                docker compose ps
-            '''
+                        docker compose ps
+                    '''
+                }
+            }
         }
-    }
-}
     }
 
     post {

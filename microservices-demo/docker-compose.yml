@@ -30,6 +30,14 @@ services:
       - product-service
     restart: unless-stopped
 
+  payment-service:
+    image: 319556313663.dkr.ecr.us-east-1.amazonaws.com/payment-service:v1
+    container_name: payment-service
+    ports:
+      - "8003:8003"
+    pull_policy: always
+    restart: unless-stopped
+
   nginx:
     build: ./frontend
     container_name: nginx-proxy
@@ -41,6 +49,7 @@ services:
       - user-service
       - product-service
       - order-service
+      - payment-service
     restart: unless-stopped
 
   prometheus:
